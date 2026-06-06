@@ -125,6 +125,7 @@ function Waveform({ active, level }: { active: boolean; level: number }) {
 
 function formatTime(date: string) {
   return new Intl.DateTimeFormat("en", {
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit"
