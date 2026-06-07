@@ -46,6 +46,11 @@ type SpeechRecognitionLike = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
+type LocalTranscriber = (
+  audio: Float32Array,
+  options: { task: "transcribe" }
+) => Promise<{ text: string }>;
+
 const RU_RESPONSES = [
   "Хули ты кричишь? Хотя ладно, продолжай.",
   "Ага, ещё поори. Интернет терпит.",
@@ -159,11 +164,14 @@ export default function Home() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const finalTranscriptRef = useRef("");
   const interimTranscriptRef = useRef("");
+  const localTranscriberRef = useRef<Promise<LocalTranscriber> | null>(null);
   const peakRef = useRef(0);
 
   const isRussian = geo.language === "ru";
@@ -184,15 +192,69 @@ export default function Home() {
       online: isRussian ? "ОРУТ СЕЙЧАС" : "SCREAMERS ONLINE",
       recent: isRussian ? "НЕДАВНИЕ КРИКИ" : "RECENT SCREAMS",
       unsupported: isRussian
-        ? "Распознавание речи в этом браузере ограничено, но микрофон и орометр работают."
-        : "Speech recognition is limited in this browser, but the microphone and scream meter still work.",
+        ? "Локальная модель не смогла разобрать речь. Крик всё равно засчитан."
+        : "The local speech model could not catch words. The scream still counts.",
       listening: isRussian ? "Слушаю речь. Говори или ори." : "Listening for speech. Talk or scream.",
+      localModelLoading: isRussian
+        ? "Гружу локальный распознаватель. Первый раз может быть медленно."
+        : "Loading local speech recognizer. First run can be slow.",
+      localModelWorking: isRussian ? "Расшифровываю локально..." : "Transcribing locally...",
       unclear: isRussian
         ? "Речь не разобрал. Попробуй сказать фразу чётче."
         : "No speech detected. Try saying a clearer phrase.",
       untranscribed: isRussian ? "без расшифровки" : "not transcribed"
     }),
     [isRussian]
+  );
+
+  const getLocalTranscriber = useCallback(() => {
+    if (!localTranscriberRef.current) {
+      const loadTransformers = new Function(
+        "return import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2')"
+      ) as () => Promise<{
+        env: { allowLocalModels: boolean; allowRemoteModels: boolean };
+        pipeline: (task: "automatic-speech-recognition", model: string) => Promise<LocalTranscriber>;
+      }>;
+
+      localTranscriberRef.current = loadTransformers().then(async ({ env, pipeline }) => {
+        env.allowLocalModels = false;
+        env.allowRemoteModels = true;
+        const transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny");
+        return transcriber as LocalTranscriber;
+      });
+    }
+
+    return localTranscriberRef.current;
+  }, []);
+
+  const transcribeLocally = useCallback(
+    async (audioBlob: Blob) => {
+      if (!audioBlob.size) {
+        return "";
+      }
+
+      setTranscriptionStatus(copy.localModelLoading);
+      const [transcriber, audioBuffer] = await Promise.all([
+        getLocalTranscriber(),
+        audioBlob.arrayBuffer().then(async (buffer) => {
+          const context = new AudioContext({ sampleRate: 16000 });
+          try {
+            return await context.decodeAudioData(buffer);
+          } finally {
+            context.close().catch(() => undefined);
+          }
+        })
+      ]);
+
+      setTranscriptionStatus(copy.localModelWorking);
+      const audio = audioBuffer.getChannelData(0);
+      const result = await transcriber(audio, {
+        task: "transcribe"
+      });
+
+      return result.text.trim();
+    },
+    [copy.localModelLoading, copy.localModelWorking, getLocalTranscriber]
   );
 
   const loadRecent = useCallback(async () => {
@@ -238,6 +300,21 @@ export default function Home() {
       recognitionRef.current.stop();
       await new Promise((resolve) => window.setTimeout(resolve, 250));
     }
+
+    const recordedBlob = await new Promise<Blob>((resolve) => {
+      const recorder = mediaRecorderRef.current;
+      if (!recorder || recorder.state === "inactive") {
+        resolve(new Blob(recordedChunksRef.current, { type: "audio/webm" }));
+        return;
+      }
+
+      recorder.onstop = () => {
+        resolve(new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" }));
+      };
+      recorder.stop();
+    });
+    mediaRecorderRef.current = null;
+
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
@@ -250,7 +327,14 @@ export default function Home() {
     audioContextRef.current = null;
     setLevel(0);
 
-    const recognizedTranscript = (finalTranscriptRef.current || transcript || interimTranscriptRef.current).trim();
+    let recognizedTranscript = (finalTranscriptRef.current || transcript || interimTranscriptRef.current).trim();
+    if (!recognizedTranscript) {
+      recognizedTranscript = await transcribeLocally(recordedBlob).catch(() => {
+        setSupportMessage(copy.unsupported);
+        return "";
+      });
+    }
+
     const hasTranscript = recognizedTranscript.length > 0;
     const finalTranscript = hasTranscript ? recognizedTranscript : null;
     const unclearResponses = geo.language === "ru" ? RU_UNCLEAR_RESPONSES : EN_UNCLEAR_RESPONSES;
@@ -277,7 +361,7 @@ export default function Home() {
     }).catch(() => undefined);
 
     loadRecent().catch(() => undefined);
-  }, [copy.unclear, geo.country, geo.language, loadRecent, startedAt, transcript]);
+  }, [copy.unclear, copy.unsupported, geo.country, geo.language, loadRecent, startedAt, transcript, transcribeLocally]);
 
   const startRecording = useCallback(async () => {
     setSupportMessage("");
@@ -285,12 +369,24 @@ export default function Home() {
     setTranscriptionStatus("");
     finalTranscriptRef.current = "";
     interimTranscriptRef.current = "";
+    recordedChunksRef.current = [];
     peakRef.current = 0;
     setPeak(0);
     setStartedAt(Date.now());
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
+
+    if (typeof MediaRecorder !== "undefined") {
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+    }
 
     const audioContext = new AudioContext();
     audioContextRef.current = audioContext;
@@ -338,8 +434,9 @@ export default function Home() {
         setTranscript(nextTranscript);
       };
       recognition.onerror = (event) => {
-        const error = event.error ? ` (${event.error})` : "";
-        setSupportMessage(`${copy.unsupported}${error}`);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setSupportMessage(copy.unsupported);
+        }
       };
       recognition.onnomatch = () => {
         setTranscriptionStatus(copy.unclear);
@@ -351,8 +448,7 @@ export default function Home() {
       recognition.start();
       setTranscriptionStatus(copy.listening);
     } else {
-      setSupportMessage(copy.unsupported);
-      setTranscriptionStatus(copy.unclear);
+      setTranscriptionStatus(copy.listening);
     }
 
     setResponse(isRussian ? "Ори. Я слушаю." : "Scream. I am listening.");
