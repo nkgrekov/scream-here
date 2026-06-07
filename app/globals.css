@@ -256,18 +256,19 @@ h1 {
   z-index: 2;
   display: grid;
   place-items: center;
-  gap: 10px;
-  width: 260px;
+  width: 248px;
   aspect-ratio: 1;
-  border: 1px solid rgba(151, 255, 25, 0.9);
+  border: 0;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 50% 44%, #a2ff22 0 42%, #75d80a 43% 60%, rgba(0, 0, 0, 0.84) 61%);
+  background: linear-gradient(145deg, #aaff25 0%, #7ded00 100%);
   color: #060706;
+  outline: 0;
   box-shadow:
-    0 0 0 18px rgba(151, 255, 25, 0.04),
-    0 0 64px rgba(151, 255, 25, 0.22),
-    inset 0 0 0 22px rgba(0, 0, 0, 0.14);
+    0 0 0 1px rgba(151, 255, 25, 0.92),
+    0 0 0 16px rgba(151, 255, 25, 0.05),
+    0 0 54px rgba(151, 255, 25, 0.24),
+    inset 0 -18px 34px rgba(38, 99, 0, 0.2),
+    inset 0 18px 34px rgba(255, 255, 255, 0.16);
 }
 
 .mic-button::before {
@@ -275,8 +276,21 @@ h1 {
   position: absolute;
   inset: 18px;
   border-radius: inherit;
-  border: 9px solid rgba(0, 0, 0, 0.28);
-  mask: repeating-conic-gradient(#000 0 4deg, transparent 4deg 9deg);
+  border: 1px solid rgba(6, 7, 6, 0.14);
+  box-shadow:
+    inset 0 0 0 20px rgba(255, 255, 255, 0.06),
+    inset 0 0 0 52px rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.mic-button::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(151, 255, 25, 0.2), transparent 68%);
+  pointer-events: none;
 }
 
 .mic-button svg,
@@ -287,12 +301,12 @@ h1 {
 
 .mic-button svg {
   position: absolute;
-  top: 78px;
+  top: 70px;
 }
 
 .mic-button strong {
   position: absolute;
-  bottom: 56px;
+  bottom: 48px;
   max-width: 138px;
   font-size: 0.98rem;
   font-weight: 850;
@@ -303,18 +317,30 @@ h1 {
 
 .mic-button .meter {
   position: absolute;
-  inset: 48px;
+  inset: 0;
   border-radius: inherit;
-  background: var(--acid);
+  background: transparent;
   transition: transform 80ms linear;
+  pointer-events: none;
 }
 
 .mic-button.recording {
-  border-color: var(--red);
   box-shadow:
-    0 0 0 18px rgba(255, 81, 61, 0.06),
+    0 0 0 1px rgba(255, 81, 61, 0.92),
+    0 0 0 16px rgba(255, 81, 61, 0.05),
     0 0 64px rgba(255, 81, 61, 0.32),
-    inset 0 0 0 22px rgba(0, 0, 0, 0.14);
+    inset 0 -18px 34px rgba(99, 18, 0, 0.2),
+    inset 0 18px 34px rgba(255, 255, 255, 0.14);
+}
+
+.mic-button:focus-visible {
+  box-shadow:
+    0 0 0 3px #050605,
+    0 0 0 6px #ffffff,
+    0 0 0 9px var(--acid),
+    0 0 64px rgba(151, 255, 25, 0.28),
+    inset 0 -18px 34px rgba(38, 99, 0, 0.2),
+    inset 0 18px 34px rgba(255, 255, 255, 0.16);
 }
 
 .stats {
@@ -521,7 +547,7 @@ h1 {
   }
 
   .mic-button {
-    width: 238px;
+    width: 214px;
   }
 
   .mic-button strong {
@@ -530,17 +556,18 @@ h1 {
   }
 
   .mic-button .meter {
-    inset: 48px;
+    inset: 0;
   }
 
   .mic-button svg {
-    top: 72px;
-    width: 58px;
-    height: 58px;
+    top: 60px;
+    width: 54px;
+    height: 54px;
   }
 
   .mic-button strong {
-    bottom: 52px;
+    bottom: 40px;
+    font-size: 0.86rem;
   }
 
   h1 {
