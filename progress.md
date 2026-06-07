@@ -26,3 +26,4 @@
 - Applied `supabase/schema.sql` to create `public.screams` with RLS enabled.
 - Set Railway production variables `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - Verified production `/api/screams` writes to Supabase with `stored:true`, verified the row via SQL, then removed the test row from `public.screams`.
+- Reworked the frontend after visual review: removed compressed poster fonts, replaced the oversized vertical layout with a compact console grid, tightened desktop/mobile spacing, and verified no console errors or horizontal overflow locally.

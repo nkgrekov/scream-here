@@ -343,47 +343,49 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="scream-stage" aria-label="Scream recorder">
-        <div className="stage-copy">
-          <RadioTower size={18} />
-          <span>{copy.hold}</span>
-          <small>{isRussian ? "чем громче, тем честнее" : "the louder, the better"}</small>
-        </div>
-
-        <Waveform active={isRecording} level={level} />
-
-        <button
-          className={`mic-button ${isRecording ? "recording" : ""}`}
-          type="button"
-          onClick={toggleRecording}
-          aria-pressed={isRecording}
-        >
-          <span className="meter" style={{ transform: `scale(${1 + level * 0.18})` }} />
-          <Mic size={76} strokeWidth={2.3} />
-          <strong>{isRecording ? (isRussian ? "ОРЁШЬ" : "SCREAMING") : copy.hold}</strong>
-        </button>
-      </section>
-
-      <section className="readout">
-        <div className="label red-dot">{copy.live}</div>
-        <h1>{displayTranscript}</h1>
-        <div className="answer">
-          <div>
-            <div className="label green">
-              <Zap size={16} />
-              {copy.says}
+      <div className="console-grid">
+        <section className="readout">
+          <div className="label red-dot">{copy.live}</div>
+          <h1>{displayTranscript}</h1>
+          <div className="answer">
+            <div>
+              <div className="label green">
+                <Zap size={16} />
+                {copy.says}
+              </div>
+              <p>{response}</p>
+              <small>
+                {isRussian ? "ответ выбран по гео" : "response based on location"} ({geo.country})
+              </small>
             </div>
-            <p>{response}</p>
-            <small>
-              {isRussian ? "ответ выбран по гео" : "response based on location"} ({geo.country})
-            </small>
+            <div className="speaker" aria-hidden="true">
+              )))
+            </div>
           </div>
-          <div className="speaker" aria-hidden="true">
-            ))) 
+          {supportMessage ? <p className="support">{supportMessage}</p> : null}
+        </section>
+
+        <section className="scream-stage" aria-label="Scream recorder">
+          <div className="stage-copy">
+            <RadioTower size={18} />
+            <span>{copy.hold}</span>
+            <small>{isRussian ? "чем громче, тем честнее" : "the louder, the better"}</small>
           </div>
-        </div>
-        {supportMessage ? <p className="support">{supportMessage}</p> : null}
-      </section>
+
+          <Waveform active={isRecording} level={level} />
+
+          <button
+            className={`mic-button ${isRecording ? "recording" : ""}`}
+            type="button"
+            onClick={toggleRecording}
+            aria-pressed={isRecording}
+          >
+            <span className="meter" style={{ transform: `scale(${1 + level * 0.18})` }} />
+            <Mic size={76} strokeWidth={2.3} />
+            <strong>{isRecording ? (isRussian ? "Орёшь" : "Screaming") : copy.hold}</strong>
+          </button>
+        </section>
+      </div>
 
       <section className="stats" aria-label="Scream stats">
         <div>
