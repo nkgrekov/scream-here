@@ -16,9 +16,11 @@ The app is a Next.js App Router project. The main UI lives in `app/page.tsx`, gl
 
 ## Database
 
-The intended Supabase table is `public.screams`, defined in `supabase/schema.sql`.
+The Supabase table is `public.screams`, defined in `supabase/schema.sql` and applied to project `phoxorscorapbzhhpijl`.
 
 RLS is enabled. Public browser clients do not write directly to Supabase; writes happen through the server route with the service role key. Anonymous read policy allows recent public scream rows if the table is exposed through the Supabase Data API, but the app currently reads recent rows through the server route as well.
+
+Creating a brand-new Supabase project was attempted on 2026-06-07 but blocked by the account's active free-project limit. The current deployment uses an existing active Supabase project with a dedicated `public.screams` table. If a separate project slot becomes available, the same SQL schema can be applied there and Railway only needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` updated.
 
 ## Deployment
 
@@ -27,3 +29,5 @@ Railway builds with Nixpacks and runs `npm start`. `railway.json` defines `/api/
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Production Railway currently has the Supabase URL and service-role key configured for project `phoxorscorapbzhhpijl`.

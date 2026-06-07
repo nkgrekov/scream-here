@@ -20,5 +20,11 @@ Scream Here is a public web app where visitors can hold a microphone button, scr
 - React
 - TypeScript
 - Supabase JS service client on server routes
-- geoip-lite for IP country inference
+- Geo inference through deployment country headers, short IP lookup fallback, and `Accept-Language`
 - Railway Nixpacks deployment
+
+## Current Supabase Target
+
+- Project ref: `phoxorscorapbzhhpijl`
+- Table: `public.screams`
+- Note: creating a brand-new Supabase project was blocked by the account's active free-project limit, so the app currently uses an existing active Supabase project with a dedicated `public.screams` table.

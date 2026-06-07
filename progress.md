@@ -15,5 +15,14 @@
 
 ## Open Items
 
-- Create and connect the actual Supabase project once Supabase credentials/tools are available; the Supabase MCP tools and CLI credentials were not available in this workspace.
+- Optional: move `public.screams` to a brand-new Supabase project after freeing/upgrading an active project slot. Creation was attempted on 2026-06-07 and blocked by the account active free-project limit.
 - Add Yandex Metrica, Google Analytics, and GSC verification tags later.
+
+## 2026-06-07
+
+- Installed and authenticated Supabase CLI profile `scream-here`.
+- Attempted to create a separate Supabase project `scream-here`; Supabase rejected it because the account/organizations are at the active free-project limit.
+- Linked the workspace to existing active Supabase project `phoxorscorapbzhhpijl` in `DL Poly`.
+- Applied `supabase/schema.sql` to create `public.screams` with RLS enabled.
+- Set Railway production variables `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- Verified production `/api/screams` writes to Supabase with `stored:true`, verified the row via SQL, then removed the test row from `public.screams`.
