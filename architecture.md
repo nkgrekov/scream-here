@@ -10,8 +10,8 @@ The app is a Next.js App Router project. The main UI lives in `app/page.tsx`, gl
 2. `/api/geo` reads country headers (`cf-ipcountry`, `x-vercel-ip-country`, `x-country-code`). If absent, it tries a short `ipapi.co` IP lookup, then falls back to `Accept-Language`. `RU` selects Russian UI responses; everything else selects English.
 3. Client asks for microphone access when the user presses the central scream button.
 4. Browser audio analyser drives the visible sound meter.
-5. Web Speech API captures interim/final transcription when supported.
-6. On stop, the client chooses a response phrase and posts event metadata to `/api/screams`.
+5. Web Speech API captures interim/final transcription when supported. The client keeps final and interim recognition refs so delayed browser results can still be used after stop.
+6. On stop, the client chooses a response phrase and posts event metadata to `/api/screams`. If the browser did not return any recognized speech, the UI shows an unclear-speech state and the event is stored with `transcript = NULL` instead of a fake scream string.
 7. `/api/screams` stores the event in Supabase when `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are configured.
 
 ## Database

@@ -37,6 +37,8 @@ type SpeechRecognitionLike = {
   interimResults: boolean;
   continuous: boolean;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onnomatch: (() => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
@@ -58,6 +60,18 @@ const EN_RESPONSES = [
   "Solid scream. Your neighbors are taking notes.",
   "Big feelings, small microphone.",
   "Good yell. Almost therapy, but with worse acoustics."
+];
+
+const RU_UNCLEAR_RESPONSES = [
+  "Слов не понял. Крик засчитан.",
+  "Речь не разобрал, но по громкости вопросов нет.",
+  "Это было больше похоже на звук, чем на текст."
+];
+
+const EN_UNCLEAR_RESPONSES = [
+  "No words detected. The scream still counts.",
+  "I did not catch the speech, but the noise landed.",
+  "That sounded more like a sound than a sentence."
 ];
 
 const FALLBACK_RECENT: RecentScream[] = [
@@ -141,6 +155,7 @@ export default function Home() {
   const [peak, setPeak] = useState(0);
   const [recent, setRecent] = useState<RecentScream[]>(FALLBACK_RECENT);
   const [supportMessage, setSupportMessage] = useState("");
+  const [transcriptionStatus, setTranscriptionStatus] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -148,11 +163,14 @@ export default function Home() {
   const animationRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const finalTranscriptRef = useRef("");
+  const interimTranscriptRef = useRef("");
   const peakRef = useRef(0);
 
   const isRussian = geo.language === "ru";
   const displayTranscript =
-    transcript || (isRussian ? "Зажми микрофон и ори сюда." : "Hold the mic and scream into this page.");
+    transcript ||
+    transcriptionStatus ||
+    (isRussian ? "Зажми микрофон и ори сюда." : "Hold the mic and scream into this page.");
 
   const seoLine = isRussian ? "хочешь кричать? кричи здесь" : "want to scream? scream here";
 
@@ -167,7 +185,12 @@ export default function Home() {
       recent: isRussian ? "НЕДАВНИЕ КРИКИ" : "RECENT SCREAMS",
       unsupported: isRussian
         ? "Распознавание речи в этом браузере ограничено, но микрофон и орометр работают."
-        : "Speech recognition is limited in this browser, but the microphone and scream meter still work."
+        : "Speech recognition is limited in this browser, but the microphone and scream meter still work.",
+      listening: isRussian ? "Слушаю речь. Говори или ори." : "Listening for speech. Talk or scream.",
+      unclear: isRussian
+        ? "Речь не разобрал. Попробуй сказать фразу чётче."
+        : "No speech detected. Try saying a clearer phrase.",
+      untranscribed: isRussian ? "без расшифровки" : "not transcribed"
     }),
     [isRussian]
   );
@@ -211,7 +234,10 @@ export default function Home() {
 
   const stopRecording = useCallback(async () => {
     setIsRecording(false);
-    recognitionRef.current?.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
@@ -224,11 +250,17 @@ export default function Home() {
     audioContextRef.current = null;
     setLevel(0);
 
-    const finalTranscript = finalTranscriptRef.current || transcript || (isRussian ? "ААААААААААА!!!" : "AAAAAAAHHH!!!");
-    const selectedResponse = pickResponse(geo.language, finalTranscript + peakRef.current.toFixed(2));
+    const recognizedTranscript = (finalTranscriptRef.current || transcript || interimTranscriptRef.current).trim();
+    const hasTranscript = recognizedTranscript.length > 0;
+    const finalTranscript = hasTranscript ? recognizedTranscript : null;
+    const unclearResponses = geo.language === "ru" ? RU_UNCLEAR_RESPONSES : EN_UNCLEAR_RESPONSES;
+    const selectedResponse = hasTranscript
+      ? pickResponse(geo.language, recognizedTranscript + peakRef.current.toFixed(2))
+      : unclearResponses[Math.round(peakRef.current * 100) % unclearResponses.length];
     const durationMs = startedAt ? Date.now() - startedAt : null;
 
-    setTranscript(finalTranscript);
+    setTranscriptionStatus(hasTranscript ? "" : copy.unclear);
+    setTranscript(finalTranscript ?? "");
     setResponse(selectedResponse);
 
     await fetch("/api/screams", {
@@ -245,12 +277,14 @@ export default function Home() {
     }).catch(() => undefined);
 
     loadRecent().catch(() => undefined);
-  }, [geo.country, geo.language, isRussian, loadRecent, startedAt, transcript]);
+  }, [copy.unclear, geo.country, geo.language, loadRecent, startedAt, transcript]);
 
   const startRecording = useCallback(async () => {
     setSupportMessage("");
     setTranscript("");
+    setTranscriptionStatus("");
     finalTranscriptRef.current = "";
+    interimTranscriptRef.current = "";
     peakRef.current = 0;
     setPeak(0);
     setStartedAt(Date.now());
@@ -298,20 +332,32 @@ export default function Home() {
         if (finalText) {
           finalTranscriptRef.current = `${finalTranscriptRef.current} ${finalText}`.trim();
         }
-        setTranscript(`${finalTranscriptRef.current} ${interim}`.trim());
+        interimTranscriptRef.current = interim.trim();
+        const nextTranscript = `${finalTranscriptRef.current} ${interim}`.trim();
+        setTranscriptionStatus(nextTranscript ? "" : copy.listening);
+        setTranscript(nextTranscript);
+      };
+      recognition.onerror = (event) => {
+        const error = event.error ? ` (${event.error})` : "";
+        setSupportMessage(`${copy.unsupported}${error}`);
+      };
+      recognition.onnomatch = () => {
+        setTranscriptionStatus(copy.unclear);
       };
       recognition.onend = () => {
         recognitionRef.current = null;
       };
       recognitionRef.current = recognition;
       recognition.start();
+      setTranscriptionStatus(copy.listening);
     } else {
       setSupportMessage(copy.unsupported);
+      setTranscriptionStatus(copy.unclear);
     }
 
     setResponse(isRussian ? "Ори. Я слушаю." : "Scream. I am listening.");
     setIsRecording(true);
-  }, [copy.unsupported, isRussian]);
+  }, [copy.listening, copy.unclear, copy.unsupported, isRussian]);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
@@ -417,7 +463,7 @@ export default function Home() {
                   <i key={index} style={{ height: `${8 + Math.abs(Math.sin(index * 1.7)) * 24}px` }} />
                 ))}
               </div>
-              <strong>{item.transcript || "AAAAAAAHHH!!!"}</strong>
+              <strong>{item.transcript || copy.untranscribed}</strong>
               <p>{item.response}</p>
               <button type="button" aria-label="Play scream preview">
                 <Play size={18} fill="currentColor" />

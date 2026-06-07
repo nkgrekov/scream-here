@@ -28,3 +28,4 @@
 - Verified production `/api/screams` writes to Supabase with `stored:true`, verified the row via SQL, then removed the test row from `public.screams`.
 - Reworked the frontend after visual review: removed compressed poster fonts, replaced the oversized vertical layout with a compact console grid, tightened desktop/mobile spacing, and verified no console errors or horizontal overflow locally.
 - Replaced the crooked pseudo-speedometer mic control with a simpler circular button, removed the conic mask/black arc artifacts, and limited focus styling to `:focus-visible`.
+- Fixed transcription honesty: failed/empty Web Speech API recognition no longer becomes a fake `AAAA...` transcript. The UI now shows an explicit unclear-speech state and `/api/screams` stores `NULL` for untranscribed screams.

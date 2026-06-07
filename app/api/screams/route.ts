@@ -64,7 +64,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
     | {
-        transcript?: string;
+        transcript?: string | null;
         response?: string;
         language?: "ru" | "en";
         countryCode?: string;
@@ -77,10 +77,15 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: false, error: "Invalid scream payload" }, { status: 400 });
   }
 
+  const transcript =
+    typeof body.transcript === "string" && body.transcript.trim()
+      ? body.transcript.trim().slice(0, 500)
+      : null;
+
   const row: ScreamInsert = {
     country_code: body.countryCode?.slice(0, 8).toUpperCase() ?? null,
     language: body.language === "ru" ? "ru" : "en",
-    transcript: body.transcript?.slice(0, 500) ?? null,
+    transcript,
     response: body.response.slice(0, 280),
     peak_volume: typeof body.peakVolume === "number" ? body.peakVolume : null,
     duration_ms: typeof body.durationMs === "number" ? Math.min(body.durationMs, 120000) : null,
